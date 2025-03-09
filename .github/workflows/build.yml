@@ -1,0 +1,143 @@
+name: Build FCS细胞采样工具
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: Get version
+        id: get_version
+        run: echo "VERSION=$(cat version.txt)" >> $GITHUB_OUTPUT
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller numpy pandas fcsparser flowio pillow matplotlib scipy
+          pip install git+https://github.com/eyurtsev/FlowCytometryTools.git
+          
+      - name: Build macOS app
+        run: |
+          python build_mac_app.py
+          chmod -R 755 dist/FCS细胞采样工具.app
+          xattr -rd com.apple.quarantine dist/FCS细胞采样工具.app || true
+          
+      - name: Create DMG
+        run: |
+          brew install create-dmg
+          create-dmg \
+            --volname "FCS细胞采样工具" \
+            --volicon "app_icon.icns" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "FCS细胞采样工具.app" 175 190 \
+            --hide-extension "FCS细胞采样工具.app" \
+            --app-drop-link 425 190 \
+            "dist/FCS细胞采样工具_v${{ steps.get_version.outputs.VERSION }}.dmg" \
+            "dist/FCS细胞采样工具.app"
+          
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: FCS细胞采样工具-macOS-v${{ steps.get_version.outputs.VERSION }}
+          path: |
+            dist/FCS细胞采样工具.app
+            dist/FCS细胞采样工具_v${{ steps.get_version.outputs.VERSION }}.dmg
+          
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: Get version
+        id: get_version
+        run: echo "VERSION=$(cat version.txt)" >> $env:GITHUB_OUTPUT
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller numpy pandas fcsparser flowio pillow matplotlib scipy
+          pip install git+https://github.com/eyurtsev/FlowCytometryTools.git
+          
+      - name: Build Windows exe
+        run: |
+          pyinstaller --name="FCS细胞采样工具_v${{ steps.get_version.outputs.VERSION }}" --onefile --windowed --icon=app_icon.ico --add-data="app_icon.ico;." --hidden-import=numpy --hidden-import=pandas --hidden-import=fcsparser --hidden-import=flowio --hidden-import=tkinter --hidden-import=PIL --hidden-import=matplotlib --hidden-import=scipy fcs_sampler_gui.py
+          
+      - name: Create Windows installer
+        run: |
+          pip install pynsist
+          echo "[Application]
+          name=FCS细胞采样工具
+          version=${{ steps.get_version.outputs.VERSION }}
+          entry_point=fcs_sampler_gui:main
+          icon=app_icon.ico
+          
+          [Python]
+          version=3.12.0
+          
+          [Include]
+          packages=numpy
+              pandas
+              fcsparser
+              flowio
+              tkinter
+              PIL
+              matplotlib
+              scipy
+          
+          [Build]
+          installer_name=FCS细胞采样工具_v${{ steps.get_version.outputs.VERSION }}_安装程序.exe
+          " > installer.cfg
+          pynsist installer.cfg
+          
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: FCS细胞采样工具-Windows-v${{ steps.get_version.outputs.VERSION }}
+          path: |
+            dist/FCS细胞采样工具_v${{ steps.get_version.outputs.VERSION }}.exe
+            build/nsis/FCS细胞采样工具_v${{ steps.get_version.outputs.VERSION }}_安装程序.exe
+            
+  create-release:
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Get version
+        id: get_version
+        run: echo "VERSION=$(cat version.txt)" >> $GITHUB_OUTPUT
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: FCS细胞采样工具 v${{ steps.get_version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+          files: |
+            FCS细胞采样工具-macOS-v${{ steps.get_version.outputs.VERSION }}/FCS细胞采样工具_v${{ steps.get_version.outputs.VERSION }}.dmg
+            FCS细胞采样工具-Windows-v${{ steps.get_version.outputs.VERSION }}/FCS细胞采样工具_v${{ steps.get_version.outputs.VERSION }}_安装程序.exe
+          tag_name: v${{ steps.get_version.outputs.VERSION }} 
