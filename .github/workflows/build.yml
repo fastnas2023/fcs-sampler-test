@@ -105,7 +105,8 @@ jobs:
           
           [Build]
           installer_name=FCS细胞采样工具_v${{ steps.get_version.outputs.VERSION }}_安装程序.exe
-          " > installer.cfg
+          " | Out-File -FilePath installer.cfg -Encoding utf8
+          
           pynsist installer.cfg
           
       - name: Upload Windows artifacts
