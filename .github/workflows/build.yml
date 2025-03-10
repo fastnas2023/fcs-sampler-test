@@ -84,7 +84,9 @@ jobs:
       - name: Create Windows installer
         run: |
           pip install pynsist
-          echo "[Application]
+          python -c "
+          with open('installer.cfg', 'w', encoding='utf-8') as f:
+              f.write('''[Application]
           name=FCS细胞采样工具
           version=${{ steps.get_version.outputs.VERSION }}
           entry_point=fcs_sampler_gui:main
@@ -105,7 +107,8 @@ jobs:
           
           [Build]
           installer_name=FCS细胞采样工具_v${{ steps.get_version.outputs.VERSION }}_安装程序.exe
-          " | Out-File -FilePath installer.cfg -Encoding utf8
+          ''')
+          "
           
           pynsist installer.cfg
           
