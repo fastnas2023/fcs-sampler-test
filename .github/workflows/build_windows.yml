@@ -1,0 +1,69 @@
+name: Build Windows App
+
+on:
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Get version
+        id: get_version
+        run: echo "VERSION=$(cat version.txt)" >> $env:GITHUB_OUTPUT
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller numpy pandas fcsparser flowio pillow matplotlib scipy
+          pip install git+https://github.com/eyurtsev/FlowCytometryTools.git
+          
+      - name: Build Windows exe
+        run: |
+          pyinstaller --name="FCS_Sampler_Tool_v${{ steps.get_version.outputs.VERSION }}" --onefile --windowed --icon=app_icon.ico --add-data="app_icon.ico;." --hidden-import=numpy --hidden-import=pandas --hidden-import=fcsparser --hidden-import=flowio --hidden-import=tkinter --hidden-import=PIL --hidden-import=matplotlib --hidden-import=scipy fcs_sampler_gui.py
+          
+      - name: Create Windows installer
+        run: |
+          pip install pynsist
+          
+          # Create installer.cfg with ASCII characters only
+          @"
+          [Application]
+          name=FCS Sampler Tool
+          version=${{ steps.get_version.outputs.VERSION }}
+          entry_point=fcs_sampler_gui:main
+          icon=app_icon.ico
+          
+          [Python]
+          version=3.12.0
+          
+          [Include]
+          packages=numpy
+              pandas
+              fcsparser
+              flowio
+              tkinter
+              PIL
+              matplotlib
+              scipy
+          
+          [Build]
+          installer_name=FCS_Sampler_Tool_v${{ steps.get_version.outputs.VERSION }}_Setup.exe
+          "@ | Out-File -FilePath installer.cfg -Encoding ascii
+          
+          # Run pynsist
+          pynsist installer.cfg
+          
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: FCS-Sampler-Tool-Windows-v${{ steps.get_version.outputs.VERSION }}
+          path: |
+            dist/FCS_Sampler_Tool_v${{ steps.get_version.outputs.VERSION }}.exe
+            build/nsis/FCS_Sampler_Tool_v${{ steps.get_version.outputs.VERSION }}_Setup.exe 
