@@ -79,40 +79,64 @@ class FcsSamplerGUI:
         ttk.Button(button_frame, text="开始采样", command=self.start_sampling).grid(row=0, column=0, padx=10)
         ttk.Button(button_frame, text="清除信息", command=self.clear_info).grid(row=0, column=1, padx=10)
         
-        # 添加打赏二维码部分
-        ttk.Label(main_frame, text="打赏支持", font=('Arial', 12, 'bold')).grid(row=15, column=0, pady=(20,10), sticky=tk.W)
+        # 添加打赏二维码部分 - 优化位置和显示效果
+        # 创建一个带边框的LabelFrame来容纳二维码
+        donate_frame = ttk.LabelFrame(main_frame, text="打赏支持", padding="10")
+        donate_frame.grid(row=9, column=0, sticky=(tk.W, tk.E), pady=15)
         
-        # 创建二维码框架
-        qrcode_frame = ttk.Frame(main_frame)
-        qrcode_frame.grid(row=16, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        # 添加说明文字
+        intro_text = "如果您觉得这个工具对您有所帮助，欢迎扫描下方二维码进行打赏支持！"
+        ttk.Label(donate_frame, text=intro_text, wraplength=550, font=('Arial', 10)).grid(row=0, column=0, columnspan=2, pady=(0, 10), sticky=tk.W)
+        
+        # 创建二维码容器框架，使用水平居中布局
+        qrcode_container = ttk.Frame(donate_frame)
+        qrcode_container.grid(row=1, column=0, sticky=tk.N+tk.E+tk.W+tk.S)
+        qrcode_container.columnconfigure(0, weight=1)
+        qrcode_container.columnconfigure(1, weight=1)
         
         # 加载并显示微信二维码
         try:
             wechat_img = Image.open("qrcode-wechat.jpg")
-            wechat_img = wechat_img.resize((150, 150), Image.LANCZOS)  # 调整大小
+            # 调整大小为更合适的尺寸
+            wechat_img = wechat_img.resize((120, 120), Image.LANCZOS)
             self.wechat_photo = ImageTk.PhotoImage(wechat_img)
             
-            wechat_label = ttk.Label(qrcode_frame, image=self.wechat_photo)
-            wechat_label.grid(row=0, column=0, padx=10, pady=5)
-            ttk.Label(qrcode_frame, text="微信支付").grid(row=1, column=0, padx=10)
+            # 创建微信支付框架
+            wechat_frame = ttk.Frame(qrcode_container)
+            wechat_frame.grid(row=0, column=0, padx=20, pady=5)
+            
+            # 添加微信二维码和标签
+            wechat_label = ttk.Label(wechat_frame, image=self.wechat_photo)
+            wechat_label.pack(pady=5)
+            ttk.Label(wechat_frame, text="微信支付", font=('Arial', 10, 'bold')).pack()
         except Exception as e:
             print(f"加载微信二维码出错: {e}")
         
         # 加载并显示支付宝二维码
         try:
             alipay_img = Image.open("qrcode-alipay.jpg")
-            alipay_img = alipay_img.resize((150, 150), Image.LANCZOS)  # 调整大小
+            # 调整大小为更合适的尺寸
+            alipay_img = alipay_img.resize((120, 120), Image.LANCZOS)
             self.alipay_photo = ImageTk.PhotoImage(alipay_img)
             
-            alipay_label = ttk.Label(qrcode_frame, image=self.alipay_photo)
-            alipay_label.grid(row=0, column=1, padx=10, pady=5)
-            ttk.Label(qrcode_frame, text="支付宝").grid(row=1, column=1, padx=10)
+            # 创建支付宝框架
+            alipay_frame = ttk.Frame(qrcode_container)
+            alipay_frame.grid(row=0, column=1, padx=20, pady=5)
+            
+            # 添加支付宝二维码和标签
+            alipay_label = ttk.Label(alipay_frame, image=self.alipay_photo)
+            alipay_label.pack(pady=5)
+            ttk.Label(alipay_frame, text="支付宝", font=('Arial', 10, 'bold')).pack()
         except Exception as e:
             print(f"加载支付宝二维码出错: {e}")
             
         # 添加感谢文字
         thank_text = "感谢您的支持，这将帮助我们持续改进和维护这个工具！"
-        ttk.Label(qrcode_frame, text=thank_text, wraplength=400).grid(row=2, column=0, columnspan=2, pady=10)
+        ttk.Label(donate_frame, text=thank_text, wraplength=550, font=('Arial', 10, 'italic')).grid(row=2, column=0, columnspan=2, pady=(10, 0))
+        
+        # 添加版权信息
+        copyright_text = "© 2025 FCS细胞采样工具 - 版本 1.0.2"
+        ttk.Label(main_frame, text=copyright_text, font=('Arial', 8)).grid(row=10, column=0, pady=(10, 0), sticky=tk.E)
         
     def select_file(self):
         filename = filedialog.askopenfilename(
