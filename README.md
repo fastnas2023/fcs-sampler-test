@@ -4,14 +4,14 @@ FCS细胞采样工具是一个用于处理流式细胞仪数据的应用程序�
 
 ## 下载安装
 
-### 最新版本：v1.0.2
+### 最新版本：v1.0.3
 
 - **Windows版本**：
-  - [Windows安装程序(.exe)](https://github.com/fastnas2023/fcs-sampler-test/releases/download/v1.0.2/FCS细胞采样工具_v1.0.2_安装程序.exe)
-  - [Windows可执行文件(.exe)](https://github.com/fastnas2023/fcs-sampler-test/releases/download/v1.0.2/FCS细胞采样工具_v1.0.2.exe)
+  - [Windows安装程序(.exe)](https://github.com/fastnas2023/fcs-sampler-test/releases/download/v1.0.3/FCS细胞采样工具_v1.0.3_安装程序.exe)
+  - [Windows可执行文件(.exe)](https://github.com/fastnas2023/fcs-sampler-test/releases/download/v1.0.3/FCS细胞采样工具_v1.0.3.exe)
 
 - **macOS版本**：
-  - [macOS安装包(.dmg)](https://github.com/fastnas2023/fcs-sampler-test/releases/download/v1.0.2/FCS细胞采样工具_v1.0.2.dmg)
+  - [macOS安装包(.dmg)](https://github.com/fastnas2023/fcs-sampler-test/releases/download/v1.0.3/FCS细胞采样工具_v1.0.3.dmg)
 
 - [查看所有版本](https://github.com/fastnas2023/fcs-sampler-test/releases)
 
@@ -30,13 +30,13 @@ FCS细胞采样工具是一个用于处理流式细胞仪数据的应用程序�
 
 ### Windows
 
-1. 下载最新的[安装包(.exe)](https://github.com/fastnas2023/fcs-sampler-test/releases/download/v1.0.2/FCS细胞采样工具_v1.0.2_安装程序.exe)
+1. 下载最新的[安装包(.exe)](https://github.com/fastnas2023/fcs-sampler-test/releases/download/v1.0.3/FCS细胞采样工具_v1.0.3_安装程序.exe)
 2. 双击安装包运行安装程序
 3. 按照安装向导完成安装
 
 ### macOS
 
-1. 下载最新的[应用包(.dmg)](https://github.com/fastnas2023/fcs-sampler-test/releases/download/v1.0.2/FCS细胞采样工具_v1.0.2.dmg)
+1. 下载最新的[应用包(.dmg)](https://github.com/fastnas2023/fcs-sampler-test/releases/download/v1.0.3/FCS细胞采样工具_v1.0.3.dmg)
 2. 打开dmg文件
 3. 将应用拖到Applications文件夹
 
