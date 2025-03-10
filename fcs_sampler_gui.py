@@ -430,44 +430,20 @@ class FcsSamplerGUI:
         
         # 设置二维码容器的列权重，使二维码居中
         qrcode_container.columnconfigure(0, weight=1)
-        qrcode_container.columnconfigure(1, weight=1)
-        qrcode_container.columnconfigure(2, weight=1)
         
-        # 加载并显示微信二维码
+        # 加载并显示合并的二维码
         try:
-            wechat_img = Image.open("qrcode-wechat.jpg")
+            qrcode_img = Image.open("qrcode.png")
             # 调整大小为更合适的尺寸
-            wechat_img = wechat_img.resize((120, 120), Image.LANCZOS)
-            self.wechat_photo = ImageTk.PhotoImage(wechat_img)
+            qrcode_img = qrcode_img.resize((300, 150), Image.LANCZOS)
+            self.qrcode_photo = ImageTk.PhotoImage(qrcode_img)
             
-            # 创建微信支付框架
-            wechat_frame = ttk.Frame(qrcode_container)
-            wechat_frame.grid(row=0, column=0, padx=20, pady=5, sticky=tk.E)
-            
-            # 添加微信二维码和标签
-            wechat_label = ttk.Label(wechat_frame, image=self.wechat_photo)
-            wechat_label.pack(pady=5)
-            ttk.Label(wechat_frame, text="微信支付", font=('Arial', 10, 'bold')).pack()
+            # 添加二维码和标签
+            qrcode_label = ttk.Label(qrcode_container, image=self.qrcode_photo)
+            qrcode_label.grid(row=0, column=0, pady=5)
+            ttk.Label(qrcode_container, text="微信支付 / 支付宝", font=('Arial', 10, 'bold')).grid(row=1, column=0)
         except Exception as e:
-            print(f"加载微信二维码出错: {e}")
-        
-        # 加载并显示支付宝二维码
-        try:
-            alipay_img = Image.open("qrcode-alipay.jpg")
-            # 调整大小为更合适的尺寸
-            alipay_img = alipay_img.resize((120, 120), Image.LANCZOS)
-            self.alipay_photo = ImageTk.PhotoImage(alipay_img)
-            
-            # 创建支付宝框架
-            alipay_frame = ttk.Frame(qrcode_container)
-            alipay_frame.grid(row=0, column=2, padx=20, pady=5, sticky=tk.W)
-            
-            # 添加支付宝二维码和标签
-            alipay_label = ttk.Label(alipay_frame, image=self.alipay_photo)
-            alipay_label.pack(pady=5)
-            ttk.Label(alipay_frame, text="支付宝", font=('Arial', 10, 'bold')).pack()
-        except Exception as e:
-            print(f"加载支付宝二维码出错: {e}")
+            print(f"加载二维码出错: {e}")
             
         # 添加感谢文字
         thank_text = "感谢您的支持，这将帮助我们持续改进和维护这个工具！"

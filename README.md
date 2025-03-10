@@ -154,6 +154,15 @@ FCS细胞采样工具支持插件系统，允许用户扩展软件功能，实�
 - 提交GitHub Issue
 - 发送邮件至：support@example.com
 
+## 打赏支持
+
+如果您觉得这个工具对您有所帮助，欢迎扫描下方二维码进行打赏支持！您的支持将帮助我们持续改进和维护这个工具。
+
+<div align="center">
+  <img src="qrcode.png" alt="微信支付/支付宝" width="500"/>
+  <p>微信支付 / 支付宝</p>
+</div>
+
 ## 许可证
 
 本项目采用MIT许可证。详情请参阅LICENSE文件。
