@@ -84,7 +84,8 @@ jobs:
       - name: Create Windows installer
         run: |
           pip install pynsist
-          echo "[Application]
+          $content = @"
+          [Application]
           name=FCS Sampler Tool
           version=${{ steps.get_version.outputs.VERSION }}
           entry_point=fcs_sampler_gui:main
@@ -105,7 +106,9 @@ jobs:
           
           [Build]
           installer_name=FCS_Sampler_Tool_v${{ steps.get_version.outputs.VERSION }}_Setup.exe
-          " > installer.cfg
+          "@
+          
+          Set-Content -Path installer.cfg -Value $content -Encoding UTF8
           
           pynsist installer.cfg
           
