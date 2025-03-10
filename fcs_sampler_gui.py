@@ -12,6 +12,186 @@ import requests  # 添加requests库用于网络请求
 import json  # 添加json库用于解析API响应
 import threading  # 添加threading库用于后台任务
 import re  # 添加re库用于版本比较
+import importlib.util  # 用于动态导入插件
+import inspect  # 用于检查插件类
+import pkgutil  # 用于遍历插件包
+import sys  # 用于添加插件路径
+import zipfile  # 用于处理插件zip文件
+import shutil  # 用于文件操作
+
+# 插件接口类
+class FcsPluginInterface:
+    """FCS处理插件接口，所有插件必须继承此类并实现必要的方法"""
+    
+    def __init__(self):
+        self.name = "插件基类"
+        self.description = "插件基类描述"
+        self.version = "1.0.0"
+        self.author = "未知"
+        
+    def get_info(self):
+        """返回插件信息"""
+        return {
+            "name": self.name,
+            "description": self.description,
+            "version": self.version,
+            "author": self.author
+        }
+    
+    def get_ui_elements(self, parent_frame):
+        """返回插件的UI元素，将被添加到主界面的插件选项卡中
+        
+        Args:
+            parent_frame: 父级框架，插件UI应该添加到这个框架中
+            
+        Returns:
+            frame: 包含插件UI元素的框架
+        """
+        frame = ttk.Frame(parent_frame)
+        ttk.Label(frame, text=f"插件 '{self.name}' UI").pack(pady=10)
+        return frame
+    
+    def process_fcs(self, metadata, raw_data, params=None):
+        """处理FCS数据
+        
+        Args:
+            metadata: FCS文件元数据
+            raw_data: FCS原始数据
+            params: 处理参数字典
+            
+        Returns:
+            tuple: (处理后的数据, 处理描述)
+        """
+        raise NotImplementedError("插件必须实现process_fcs方法")
+
+# 插件管理器类
+class PluginManager:
+    """管理FCS处理插件的加载、卸载和执行"""
+    
+    def __init__(self):
+        self.plugins = {}  # 存储已加载的插件
+        self.plugin_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plugins")
+        
+        # 确保插件目录存在
+        if not os.path.exists(self.plugin_dir):
+            os.makedirs(self.plugin_dir)
+            
+        # 将插件目录添加到Python路径
+        if self.plugin_dir not in sys.path:
+            sys.path.append(self.plugin_dir)
+    
+    def discover_plugins(self):
+        """发现并加载所有可用的插件"""
+        # 清空当前插件列表
+        self.plugins = {}
+        
+        # 遍历插件目录中的所有Python文件
+        for file in os.listdir(self.plugin_dir):
+            if file.endswith(".py") and not file.startswith("__"):
+                try:
+                    self._load_plugin_from_file(os.path.join(self.plugin_dir, file))
+                except Exception as e:
+                    print(f"加载插件 {file} 时出错: {str(e)}")
+    
+    def _load_plugin_from_file(self, file_path):
+        """从文件加载插件
+        
+        Args:
+            file_path: 插件文件路径
+        """
+        # 获取模块名（不含.py后缀）
+        module_name = os.path.basename(file_path)[:-3]
+        
+        # 动态导入模块
+        spec = importlib.util.spec_from_file_location(module_name, file_path)
+        if spec is None:
+            raise ImportError(f"无法从 {file_path} 加载模块")
+            
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        
+        # 查找模块中继承自FcsPluginInterface的所有类
+        for name, obj in inspect.getmembers(module):
+            if (inspect.isclass(obj) and 
+                issubclass(obj, FcsPluginInterface) and 
+                obj is not FcsPluginInterface):
+                # 实例化插件并添加到插件列表
+                plugin = obj()
+                plugin_info = plugin.get_info()
+                self.plugins[plugin_info["name"]] = plugin
+                print(f"已加载插件: {plugin_info['name']} v{plugin_info['version']}")
+    
+    def install_plugin(self, zip_path):
+        """安装新插件
+        
+        Args:
+            zip_path: 插件zip文件路径
+            
+        Returns:
+            bool: 安装是否成功
+        """
+        try:
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                # 检查zip文件是否包含必要的文件
+                file_list = zip_ref.namelist()
+                py_files = [f for f in file_list if f.endswith('.py') and not f.startswith('__')]
+                
+                if not py_files:
+                    raise ValueError("插件包中未找到Python文件")
+                
+                # 解压到插件目录
+                zip_ref.extractall(self.plugin_dir)
+                
+            # 重新发现插件
+            self.discover_plugins()
+            return True
+        except Exception as e:
+            print(f"安装插件时出错: {str(e)}")
+            return False
+    
+    def uninstall_plugin(self, plugin_name):
+        """卸载插件
+        
+        Args:
+            plugin_name: 要卸载的插件名称
+            
+        Returns:
+            bool: 卸载是否成功
+        """
+        if plugin_name not in self.plugins:
+            return False
+            
+        # 查找插件文件
+        plugin_module = self.plugins[plugin_name].__class__.__module__
+        plugin_file = f"{plugin_module}.py"
+        plugin_path = os.path.join(self.plugin_dir, plugin_file)
+        
+        # 删除插件文件
+        if os.path.exists(plugin_path):
+            os.remove(plugin_path)
+            
+        # 从插件列表中移除
+        del self.plugins[plugin_name]
+        return True
+    
+    def get_plugin_list(self):
+        """获取所有已加载插件的列表
+        
+        Returns:
+            list: 插件信息字典列表
+        """
+        return [plugin.get_info() for plugin in self.plugins.values()]
+    
+    def get_plugin(self, name):
+        """获取指定名称的插件
+        
+        Args:
+            name: 插件名称
+            
+        Returns:
+            FcsPluginInterface: 插件实例，如果不存在则返回None
+        """
+        return self.plugins.get(name)
 
 class FcsSamplerGUI:
     def __init__(self, root):
@@ -19,6 +199,10 @@ class FcsSamplerGUI:
         self.root.title("FCS文件细胞采样工具")
         self.root.geometry("700x850")  # 调整窗口大小以适应新布局
         self.root.configure(bg="#f5f5f5")  # 设置背景颜色
+        
+        # 初始化插件管理器
+        self.plugin_manager = PluginManager()
+        self.plugin_manager.discover_plugins()
         
         # 设置窗口大小调整时的行为
         self.root.grid_rowconfigure(0, weight=1)
@@ -83,111 +267,127 @@ class FcsSamplerGUI:
         about_tab.grid_rowconfigure(0, weight=1)
         about_tab.grid_columnconfigure(0, weight=1)
         
-        # ===== 采样选项卡内容 =====
+        # 创建"插件"选项卡
+        plugins_tab = ttk.Frame(tab_control)
+        tab_control.add(plugins_tab, text="插件功能")
+        
+        # 设置插件选项卡的行列权重
+        plugins_tab.grid_rowconfigure(0, weight=1)
+        plugins_tab.grid_columnconfigure(0, weight=1)
+        
+        # 创建"插件管理"选项卡
+        plugin_mgmt_tab = ttk.Frame(tab_control)
+        tab_control.add(plugin_mgmt_tab, text="插件管理")
+        
+        # 设置插件管理选项卡的行列权重
+        plugin_mgmt_tab.grid_rowconfigure(0, weight=1)
+        plugin_mgmt_tab.grid_columnconfigure(0, weight=1)
+        
+        # 初始化各选项卡内容
+        self._init_sampling_tab(sampling_tab)
+        self._init_about_tab(about_tab)
+        self._init_plugins_tab(plugins_tab)
+        self._init_plugin_mgmt_tab(plugin_mgmt_tab)
+        
+        # 设置样式
+        self.setup_styles()
+        
+        # 绑定窗口大小调整事件
+        self.root.bind("<Configure>", self.on_window_resize)
+        
+        # 自动检查更新（静默模式）
+        self.latest_version = None
+        self.release_url = None
+        self.check_for_updates(silent=True)
+        
+    def _init_sampling_tab(self, tab):
+        """初始化采样选项卡内容"""
         # 文件选择部分
-        file_section = ttk.LabelFrame(sampling_tab, text="文件设置", padding=10)
-        file_section.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=10, pady=10)
+        file_section = ttk.LabelFrame(tab, text="文件设置", padding=10)
+        file_section.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        file_section.columnconfigure(1, weight=1)  # 文件路径输入框可以扩展
         
-        # 设置文件部分的列权重
-        file_section.columnconfigure(0, weight=1)
-        
-        # 文件选择行
-        file_frame = ttk.Frame(file_section)
-        file_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=5)
-        
-        # 设置文件选择行的列权重
-        file_frame.columnconfigure(1, weight=1)
-        
-        ttk.Label(file_frame, text="FCS文件:").grid(row=0, column=0, padx=5)
+        # 文件选择
+        ttk.Label(file_section, text="FCS文件:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
         self.file_path = tk.StringVar()
-        ttk.Entry(file_frame, textvariable=self.file_path).grid(row=0, column=1, padx=5, sticky=(tk.W, tk.E))
-        ttk.Button(file_frame, text="选择文件", command=self.select_file).grid(row=0, column=2, padx=5)
+        file_entry = ttk.Entry(file_section, textvariable=self.file_path, width=50)
+        file_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
+        file_button = ttk.Button(file_section, text="浏览...", command=self.select_file)
+        file_button.grid(row=0, column=2, padx=(5, 0))
         
-        # 输出目录行
-        output_frame = ttk.Frame(file_section)
-        output_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=5)
-        
-        # 设置输出目录行的列权重
-        output_frame.columnconfigure(1, weight=1)
-        
-        ttk.Label(output_frame, text="输出目录:").grid(row=0, column=0, padx=5)
-        self.output_dir = tk.StringVar(value=os.path.expanduser("~/Documents"))
-        ttk.Entry(output_frame, textvariable=self.output_dir).grid(row=0, column=1, padx=5, sticky=(tk.W, tk.E))
-        ttk.Button(output_frame, text="选择目录", command=self.select_output_dir).grid(row=0, column=2, padx=5)
+        # 输出目录选择
+        ttk.Label(file_section, text="输出目录:").grid(row=1, column=0, sticky=tk.W, padx=(0, 5), pady=(10, 0))
+        self.output_dir = tk.StringVar(value=os.path.expanduser("~/Desktop"))
+        output_entry = ttk.Entry(file_section, textvariable=self.output_dir, width=50)
+        output_entry.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=5, pady=(10, 0))
+        output_button = ttk.Button(file_section, text="浏览...", command=self.select_output_dir)
+        output_button.grid(row=1, column=2, padx=(5, 0), pady=(10, 0))
         
         # 参数设置部分
-        param_section = ttk.LabelFrame(sampling_tab, text="采样参数", padding=10)
-        param_section.grid(row=1, column=0, sticky=(tk.W, tk.E), padx=10, pady=10)
-        
-        # 设置参数部分的列权重
-        param_section.columnconfigure(0, weight=1)
+        param_section = ttk.LabelFrame(tab, text="采样参数", padding=10)
+        param_section.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        param_section.columnconfigure(1, weight=1)  # 参数输入框可以扩展
         
         # 范围设置
-        range_frame = ttk.Frame(param_section)
-        range_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=5)
+        ttk.Label(param_section, text="起始位置:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
+        self.range_start = tk.StringVar(value="0")
+        ttk.Entry(param_section, textvariable=self.range_start, width=10).grid(row=0, column=1, sticky=tk.W, padx=5)
         
-        # 设置范围设置行的列权重
-        range_frame.columnconfigure(1, weight=1)
-        range_frame.columnconfigure(3, weight=1)
+        ttk.Label(param_section, text="结束位置:").grid(row=1, column=0, sticky=tk.W, padx=(0, 5), pady=(10, 0))
+        self.range_end = tk.StringVar(value="-1")
+        ttk.Entry(param_section, textvariable=self.range_end, width=10).grid(row=1, column=1, sticky=tk.W, padx=5, pady=(10, 0))
+        ttk.Label(param_section, text="(-1表示到文件末尾)").grid(row=1, column=2, sticky=tk.W, padx=5, pady=(10, 0))
         
-        ttk.Label(range_frame, text="起始位置:").grid(row=0, column=0, padx=5)
-        self.range_start = tk.StringVar(value="0")  # 改为0，表示第1个细胞
-        ttk.Entry(range_frame, textvariable=self.range_start).grid(row=0, column=1, padx=5, sticky=(tk.W, tk.E))
+        ttk.Label(param_section, text="目标细胞数:").grid(row=2, column=0, sticky=tk.W, padx=(0, 5), pady=(10, 0))
+        self.target_count = tk.StringVar(value="1000")
+        ttk.Entry(param_section, textvariable=self.target_count, width=10).grid(row=2, column=1, sticky=tk.W, padx=5, pady=(10, 0))
+        ttk.Label(param_section, text="(-1表示全部)").grid(row=2, column=2, sticky=tk.W, padx=5, pady=(10, 0))
         
-        ttk.Label(range_frame, text="结束位置:").grid(row=0, column=2, padx=5)
-        self.range_end = tk.StringVar(value="-1")  # 使用-1表示最后一个细胞
-        ttk.Entry(range_frame, textvariable=self.range_end).grid(row=0, column=3, padx=5, sticky=(tk.W, tk.E))
+        # 采样模式
+        ttk.Label(param_section, text="采样模式:").grid(row=3, column=0, sticky=tk.W, padx=(0, 5), pady=(10, 0))
+        self.sample_mode = tk.StringVar(value="continuous")
+        mode_frame = ttk.Frame(param_section)
+        mode_frame.grid(row=3, column=1, columnspan=2, sticky=tk.W, pady=(10, 0))
         
-        # 采样设置
-        sample_frame = ttk.Frame(param_section)
-        sample_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=5)
+        ttk.Radiobutton(mode_frame, text="连续采样", variable=self.sample_mode, value="continuous").pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Radiobutton(mode_frame, text="间隔采样", variable=self.sample_mode, value="interval").pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Radiobutton(mode_frame, text="随机采样", variable=self.sample_mode, value="random").pack(side=tk.LEFT)
         
-        # 设置采样设置行的列权重
-        sample_frame.columnconfigure(1, weight=1)
-        sample_frame.columnconfigure(3, weight=1)
+        # 按钮部分
+        button_frame = ttk.Frame(tab)
+        button_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        button_frame.columnconfigure(0, weight=1)  # 使按钮居中
         
-        ttk.Label(sample_frame, text="目标数量:").grid(row=0, column=0, padx=5)
-        self.target_count = tk.StringVar(value="-1")  # 使用-1表示所有细胞
-        ttk.Entry(sample_frame, textvariable=self.target_count).grid(row=0, column=1, padx=5, sticky=(tk.W, tk.E))
+        start_button = ttk.Button(button_frame, text="开始采样", command=self.start_sampling, style="Accent.TButton")
+        start_button.pack(pady=5)
         
-        ttk.Label(sample_frame, text="采样模式:").grid(row=0, column=2, padx=5)
-        self.sample_mode = tk.StringVar(value="interval")
-        mode_combo = ttk.Combobox(sample_frame, textvariable=self.sample_mode)
-        mode_combo['values'] = ('continuous', 'interval', 'random')
-        mode_combo.grid(row=0, column=3, padx=5, sticky=(tk.W, tk.E))
+        # 信息显示部分
+        info_section = ttk.LabelFrame(tab, text="处理信息", padding=10)
+        info_section.grid(row=3, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 0))
+        info_section.columnconfigure(0, weight=1)  # 信息文本框可以水平扩展
+        info_section.rowconfigure(0, weight=1)  # 信息文本框可以垂直扩展
         
-        # 操作按钮
-        button_frame = ttk.Frame(sampling_tab)
-        button_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), padx=10, pady=10)
+        # 创建带滚动条的文本框
+        info_frame = ttk.Frame(info_section)
+        info_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        info_frame.columnconfigure(0, weight=1)
+        info_frame.rowconfigure(0, weight=1)
         
-        ttk.Button(button_frame, text="开始采样", command=self.start_sampling, style="Accent.TButton").pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="清除信息", command=self.clear_info).pack(side=tk.LEFT, padx=5)
-        
-        # 信息显示区域
-        info_section = ttk.LabelFrame(sampling_tab, text="处理信息", padding=10)
-        info_section.grid(row=3, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=10, pady=10)
-        
-        # 设置信息显示区域的行列权重
-        info_section.grid_rowconfigure(0, weight=1)
-        info_section.grid_columnconfigure(0, weight=1)
-        
-        # 创建文本框和滚动条的容器
-        text_container = ttk.Frame(info_section)
-        text_container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        text_container.grid_rowconfigure(0, weight=1)
-        text_container.grid_columnconfigure(0, weight=1)
-        
-        # 添加文本框和滚动条
-        self.info_text = tk.Text(text_container)
+        self.info_text = tk.Text(info_frame, wrap=tk.WORD, width=60, height=10)
         self.info_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
-        scrollbar = ttk.Scrollbar(text_container, orient="vertical", command=self.info_text.yview)
+        scrollbar = ttk.Scrollbar(info_frame, orient=tk.VERTICAL, command=self.info_text.yview)
         scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
-        self.info_text.configure(yscrollcommand=scrollbar.set)
+        self.info_text['yscrollcommand'] = scrollbar.set
         
-        # ===== 关于选项卡内容 =====
+        # 添加清除按钮
+        clear_button = ttk.Button(info_section, text="清除信息", command=self.clear_info)
+        clear_button.grid(row=1, column=0, sticky=tk.E, pady=(5, 0))
+    
+    def _init_about_tab(self, tab):
+        """初始化关于选项卡内容"""
         # 使用直接的布局方式，不使用Canvas
-        about_content = ttk.Frame(about_tab)
+        about_content = ttk.Frame(tab)
         about_content.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=10, pady=10)
         
         # 设置关于内容的列权重
@@ -212,23 +412,6 @@ class FcsSamplerGUI:
         
         desc_label = ttk.Label(desc_frame, text=desc_text, wraplength=600, justify=tk.LEFT)
         desc_label.grid(row=0, column=0, sticky=(tk.W, tk.E))
-        
-        # 添加更新信息区域
-        self.update_frame = ttk.LabelFrame(about_content, text="更新信息", padding=10)
-        self.update_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
-        self.update_frame.columnconfigure(0, weight=1)
-        
-        self.update_info = ttk.Label(self.update_frame, text='点击"检查更新"按钮查看是否有新版本可用。', wraplength=600)
-        self.update_info.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=5)
-        
-        self.update_action_frame = ttk.Frame(self.update_frame)
-        self.update_action_frame.grid(row=1, column=0, sticky=(tk.W, tk.E))
-        
-        self.download_button = ttk.Button(self.update_action_frame, text="下载更新", command=self.download_update, state=tk.DISABLED)
-        self.download_button.pack(side=tk.LEFT, padx=5)
-        
-        self.release_notes_button = ttk.Button(self.update_action_frame, text="查看发布说明", command=self.view_release_notes, state=tk.DISABLED)
-        self.release_notes_button.pack(side=tk.LEFT, padx=5)
         
         # 打赏二维码部分
         donate_frame = ttk.LabelFrame(about_content, text="打赏支持", padding=10)
@@ -290,28 +473,26 @@ class FcsSamplerGUI:
         thank_text = "感谢您的支持，这将帮助我们持续改进和维护这个工具！"
         ttk.Label(donate_frame, text=thank_text, wraplength=600, font=('Arial', 10, 'italic')).grid(row=2, column=0, sticky=(tk.W, tk.E), pady=10)
         
-        # 添加版权信息
-        copyright_frame = ttk.Frame(main_frame)
-        copyright_frame.grid(row=2, column=0, sticky=(tk.E), pady=(5, 0))
+        # 添加更新信息区域
+        self.update_frame = ttk.LabelFrame(about_content, text="更新信息", padding=10)
+        self.update_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        self.update_frame.columnconfigure(0, weight=1)
         
-        copyright_text = f"© 2025 FCS细胞采样工具 - 版本 {self.current_version}"
-        ttk.Label(copyright_frame, text=copyright_text, font=('Arial', 8)).pack(side=tk.RIGHT)
+        self.update_info = ttk.Label(self.update_frame, text='点击"检查更新"按钮查看是否有新版本可用。', wraplength=600)
+        self.update_info.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=5)
         
-        # 设置样式
-        self.setup_styles()
+        self.update_action_frame = ttk.Frame(self.update_frame)
+        self.update_action_frame.grid(row=1, column=0, sticky=(tk.W, tk.E))
         
-        # 绑定窗口大小变化事件
-        self.root.bind("<Configure>", self.on_window_resize)
+        self.check_update_button = ttk.Button(self.update_action_frame, text="检查更新", command=lambda: self.check_for_updates(False))
+        self.check_update_button.pack(side=tk.LEFT, padx=5)
         
-        # 存储更新信息
-        self.latest_version = None
-        self.release_url = None
-        self.download_url = None
-        self.release_notes = None
+        self.download_button = ttk.Button(self.update_action_frame, text="下载更新", command=self.download_update, state=tk.DISABLED)
+        self.download_button.pack(side=tk.LEFT, padx=5)
         
-        # 自动检查更新（可选）
-        # self.check_for_updates(silent=True)
-        
+        self.release_notes_button = ttk.Button(self.update_action_frame, text="查看发布说明", command=self.view_release_notes, state=tk.DISABLED)
+        self.release_notes_button.pack(side=tk.LEFT, padx=5)
+    
     def get_current_version(self):
         """获取当前版本号"""
         try:
@@ -561,6 +742,24 @@ class FcsSamplerGUI:
             self.show_info(f"采样方式: {sample_desc}")
             self.show_info(f"采样后细胞数: {len(sampled_cells)}")
             
+            # 应用插件处理（如果有选择插件）
+            selected_plugin = self.selected_plugin.get() if hasattr(self, 'selected_plugin') else None
+            if selected_plugin and selected_plugin != "暂无可用插件":
+                plugin = self.plugin_manager.get_plugin(selected_plugin)
+                if plugin:
+                    self.show_info(f"\n应用插件: {selected_plugin}")
+                    try:
+                        # 调用插件处理数据
+                        processed_data, process_desc = plugin.process_fcs(metadata, sampled_cells)
+                        self.show_info(process_desc)
+                        
+                        # 更新采样结果
+                        if processed_data is not None and len(processed_data) > 0:
+                            sampled_cells = processed_data
+                            self.show_info(f"插件处理后细胞数: {len(sampled_cells)}")
+                    except Exception as e:
+                        self.show_info(f"插件处理出错: {str(e)}")
+            
             # 准备输出数据
             cell_data = sampled_cells.values.flatten()
             if not np.issubdtype(cell_data.dtype, np.floating):
@@ -590,6 +789,245 @@ class FcsSamplerGUI:
         except Exception as e:
             self.show_info(f"\n错误: {str(e)}")
             messagebox.showerror("错误", str(e))
+
+    def _init_plugins_tab(self, tab):
+        """初始化插件功能选项卡内容"""
+        # 创建插件内容框架
+        plugins_content = ttk.Frame(tab)
+        plugins_content.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=10, pady=10)
+        plugins_content.columnconfigure(0, weight=1)
+        
+        # 插件选择部分
+        plugin_select_frame = ttk.LabelFrame(plugins_content, text="选择插件", padding=10)
+        plugin_select_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        plugin_select_frame.columnconfigure(0, weight=1)
+        
+        # 创建插件选择下拉框
+        ttk.Label(plugin_select_frame, text="可用插件:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
+        
+        self.selected_plugin = tk.StringVar()
+        self.plugin_combobox = ttk.Combobox(plugin_select_frame, textvariable=self.selected_plugin, state="readonly")
+        self.plugin_combobox.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
+        
+        # 加载插件按钮
+        load_button = ttk.Button(plugin_select_frame, text="加载插件", command=self._load_selected_plugin)
+        load_button.grid(row=0, column=2, padx=(5, 0))
+        
+        # 插件描述部分
+        self.plugin_desc_frame = ttk.LabelFrame(plugins_content, text="插件描述", padding=10)
+        self.plugin_desc_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        self.plugin_desc_frame.columnconfigure(0, weight=1)
+        
+        self.plugin_desc_label = ttk.Label(self.plugin_desc_frame, text="请选择一个插件以查看描述", wraplength=600)
+        self.plugin_desc_label.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=5)
+        
+        # 插件UI部分
+        self.plugin_ui_frame = ttk.LabelFrame(plugins_content, text="插件功能", padding=10)
+        self.plugin_ui_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 0))
+        self.plugin_ui_frame.columnconfigure(0, weight=1)
+        self.plugin_ui_frame.rowconfigure(0, weight=1)
+        
+        self.plugin_ui_placeholder = ttk.Label(self.plugin_ui_frame, text="请先选择并加载一个插件", wraplength=600)
+        self.plugin_ui_placeholder.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=20)
+        
+        # 更新插件列表
+        self._update_plugin_list()
+        
+        # 绑定选择事件
+        self.plugin_combobox.bind("<<ComboboxSelected>>", self._on_plugin_selected)
+    
+    def _init_plugin_mgmt_tab(self, tab):
+        """初始化插件管理选项卡内容"""
+        # 创建插件管理内容框架
+        mgmt_content = ttk.Frame(tab)
+        mgmt_content.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=10, pady=10)
+        mgmt_content.columnconfigure(0, weight=1)
+        
+        # 已安装插件部分
+        installed_frame = ttk.LabelFrame(mgmt_content, text="已安装插件", padding=10)
+        installed_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        installed_frame.columnconfigure(0, weight=1)
+        
+        # 创建插件列表框
+        self.plugin_listbox = tk.Listbox(installed_frame, height=6)
+        self.plugin_listbox.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 5))
+        
+        # 添加滚动条
+        plugin_scrollbar = ttk.Scrollbar(installed_frame, orient=tk.VERTICAL, command=self.plugin_listbox.yview)
+        plugin_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        self.plugin_listbox['yscrollcommand'] = plugin_scrollbar.set
+        
+        # 插件操作按钮
+        plugin_actions = ttk.Frame(installed_frame)
+        plugin_actions.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
+        
+        refresh_button = ttk.Button(plugin_actions, text="刷新列表", command=self._refresh_plugin_list)
+        refresh_button.pack(side=tk.LEFT, padx=(0, 5))
+        
+        uninstall_button = ttk.Button(plugin_actions, text="卸载插件", command=self._uninstall_selected_plugin)
+        uninstall_button.pack(side=tk.LEFT, padx=5)
+        
+        # 安装新插件部分
+        install_frame = ttk.LabelFrame(mgmt_content, text="安装新插件", padding=10)
+        install_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        install_frame.columnconfigure(1, weight=1)
+        
+        ttk.Label(install_frame, text="插件文件:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
+        
+        self.plugin_file_path = tk.StringVar()
+        plugin_file_entry = ttk.Entry(install_frame, textvariable=self.plugin_file_path, width=50)
+        plugin_file_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
+        
+        plugin_file_button = ttk.Button(install_frame, text="浏览...", command=self._select_plugin_file)
+        plugin_file_button.grid(row=0, column=2, padx=(5, 0))
+        
+        install_button = ttk.Button(install_frame, text="安装插件", command=self._install_plugin)
+        install_button.grid(row=1, column=1, sticky=tk.E, pady=(10, 0))
+        
+        # 插件开发指南部分
+        dev_frame = ttk.LabelFrame(mgmt_content, text="插件开发", padding=10)
+        dev_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 0))
+        dev_frame.columnconfigure(0, weight=1)
+        
+        dev_text = """插件开发指南：
+1. 创建一个继承自FcsPluginInterface的Python类
+2. 实现必要的方法：get_info(), get_ui_elements(), process_fcs()
+3. 将插件打包为zip文件，包含所有必要的Python文件
+4. 使用"安装新插件"功能安装
+
+详细文档请参考项目GitHub页面。"""
+        
+        dev_label = ttk.Label(dev_frame, text=dev_text, wraplength=600, justify=tk.LEFT)
+        dev_label.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=5)
+        
+        github_button = ttk.Button(dev_frame, text="查看GitHub文档", 
+                                  command=lambda: self.open_website("https://github.com/fastnas2023/fcs-sampler-test"))
+        github_button.grid(row=1, column=0, sticky=tk.E, pady=(5, 0))
+        
+        # 初始化插件列表
+        self._refresh_plugin_list()
+
+    def _update_plugin_list(self):
+        """更新插件下拉列表"""
+        plugin_list = self.plugin_manager.get_plugin_list()
+        plugin_names = [p["name"] for p in plugin_list]
+        
+        if plugin_names:
+            self.plugin_combobox["values"] = plugin_names
+            self.plugin_combobox.current(0)  # 选择第一个插件
+            self._on_plugin_selected(None)  # 触发选择事件
+        else:
+            self.plugin_combobox["values"] = ["暂无可用插件"]
+            self.plugin_combobox.current(0)
+            self.plugin_desc_label.config(text="未找到任何插件。请先安装插件。")
+    
+    def _on_plugin_selected(self, event):
+        """处理插件选择事件"""
+        selected = self.selected_plugin.get()
+        if selected == "暂无可用插件":
+            return
+            
+        plugin = self.plugin_manager.get_plugin(selected)
+        if plugin:
+            info = plugin.get_info()
+            desc_text = f"""名称: {info['name']}
+版本: {info['version']}
+作者: {info['author']}
+
+描述: {info['description']}"""
+            self.plugin_desc_label.config(text=desc_text)
+    
+    def _load_selected_plugin(self):
+        """加载选中的插件"""
+        selected = self.selected_plugin.get()
+        if selected == "暂无可用插件":
+            messagebox.showinfo("提示", "暂无可用插件，请先安装插件")
+            return
+            
+        plugin = self.plugin_manager.get_plugin(selected)
+        if plugin:
+            # 清空插件UI框架
+            for widget in self.plugin_ui_frame.winfo_children():
+                widget.destroy()
+                
+            # 获取插件UI元素
+            try:
+                plugin_ui = plugin.get_ui_elements(self.plugin_ui_frame)
+                if plugin_ui:
+                    plugin_ui.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+                else:
+                    ttk.Label(self.plugin_ui_frame, text=f"插件 '{selected}' 未提供UI元素", wraplength=600).pack(pady=20)
+            except Exception as e:
+                ttk.Label(self.plugin_ui_frame, text=f"加载插件UI时出错: {str(e)}", wraplength=600).pack(pady=20)
+    
+    def _refresh_plugin_list(self):
+        """刷新插件列表"""
+        # 重新发现插件
+        self.plugin_manager.discover_plugins()
+        
+        # 更新插件下拉列表
+        self._update_plugin_list()
+        
+        # 更新插件列表框
+        self.plugin_listbox.delete(0, tk.END)
+        for plugin_info in self.plugin_manager.get_plugin_list():
+            self.plugin_listbox.insert(tk.END, f"{plugin_info['name']} (v{plugin_info['version']})")
+    
+    def _select_plugin_file(self):
+        """选择插件文件"""
+        file_path = filedialog.askopenfilename(
+            title="选择插件文件",
+            filetypes=[("ZIP文件", "*.zip"), ("所有文件", "*.*")]
+        )
+        if file_path:
+            self.plugin_file_path.set(file_path)
+    
+    def _install_plugin(self):
+        """安装插件"""
+        file_path = self.plugin_file_path.get()
+        if not file_path:
+            messagebox.showwarning("警告", "请先选择插件文件")
+            return
+            
+        if not os.path.exists(file_path):
+            messagebox.showerror("错误", "插件文件不存在")
+            return
+            
+        try:
+            success = self.plugin_manager.install_plugin(file_path)
+            if success:
+                messagebox.showinfo("成功", "插件安装成功")
+                self._refresh_plugin_list()
+            else:
+                messagebox.showerror("错误", "插件安装失败")
+        except Exception as e:
+            messagebox.showerror("错误", f"安装插件时出错: {str(e)}")
+    
+    def _uninstall_selected_plugin(self):
+        """卸载选中的插件"""
+        selected_idx = self.plugin_listbox.curselection()
+        if not selected_idx:
+            messagebox.showwarning("警告", "请先选择要卸载的插件")
+            return
+            
+        # 获取插件名称（去除版本信息）
+        plugin_text = self.plugin_listbox.get(selected_idx[0])
+        plugin_name = plugin_text.split(" (v")[0]
+        
+        # 确认卸载
+        confirm = messagebox.askyesno("确认", f"确定要卸载插件 '{plugin_name}' 吗？")
+        if not confirm:
+            return
+            
+        try:
+            success = self.plugin_manager.uninstall_plugin(plugin_name)
+            if success:
+                messagebox.showinfo("成功", f"插件 '{plugin_name}' 已卸载")
+                self._refresh_plugin_list()
+            else:
+                messagebox.showerror("错误", f"卸载插件 '{plugin_name}' 失败")
+        except Exception as e:
+            messagebox.showerror("错误", f"卸载插件时出错: {str(e)}")
 
 def sample_cells(raw_data, range_start, range_end, target_count, mode='continuous'):
     """
