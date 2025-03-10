@@ -1,0 +1,1 @@
+import numpy as np; from PIL import Image, ImageDraw, ImageFont; img = Image.new('RGB', (300, 300), color = (255, 255, 255)); d = ImageDraw.Draw(img); d.rectangle([(10, 10), (290, 290)], outline=(0, 0, 0), width=2); d.text((50, 120), '微信打赏二维码', fill=(0, 0, 0)); d.text((30, 150), '请替换为您的真实二维码', fill=(0, 0, 0)); img.save('wechat_donate.png'); print('占位二维码图片已创建: wechat_donate.png')
