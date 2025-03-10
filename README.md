@@ -2,6 +2,19 @@
 
 FCS细胞采样工具是一个用于处理流式细胞仪数据的应用程序。它可以帮助您从大型FCS文件中提取样本，支持多种采样模式。
 
+## 下载安装
+
+### 最新版本：v1.0.2
+
+- **Windows版本**：
+  - [Windows安装程序(.exe)](https://github.com/fastnas2023/fcs-sampler-test/releases/download/v1.0.2/FCS细胞采样工具_v1.0.2_安装程序.exe)
+  - [Windows可执行文件(.exe)](https://github.com/fastnas2023/fcs-sampler-test/releases/download/v1.0.2/FCS细胞采样工具_v1.0.2.exe)
+
+- **macOS版本**：
+  - [macOS安装包(.dmg)](https://github.com/fastnas2023/fcs-sampler-test/releases/download/v1.0.2/FCS细胞采样工具_v1.0.2.dmg)
+
+- [查看所有版本](https://github.com/fastnas2023/fcs-sampler-test/releases)
+
 ## 功能特点
 
 - 支持多种采样模式：
@@ -17,13 +30,13 @@ FCS细胞采样工具是一个用于处理流式细胞仪数据的应用程序�
 
 ### Windows
 
-1. 下载最新的安装包（.exe文件）
+1. 下载最新的[安装包(.exe)](https://github.com/fastnas2023/fcs-sampler-test/releases/download/v1.0.2/FCS细胞采样工具_v1.0.2_安装程序.exe)
 2. 双击安装包运行安装程序
 3. 按照安装向导完成安装
 
 ### macOS
 
-1. 下载最新的应用包（.dmg文件）
+1. 下载最新的[应用包(.dmg)](https://github.com/fastnas2023/fcs-sampler-test/releases/download/v1.0.2/FCS细胞采样工具_v1.0.2.dmg)
 2. 打开dmg文件
 3. 将应用拖到Applications文件夹
 
@@ -159,8 +172,18 @@ FCS细胞采样工具支持插件系统，允许用户扩展软件功能，实�
 如果您觉得这个工具对您有所帮助，欢迎扫描下方二维码进行打赏支持！您的支持将帮助我们持续改进和维护这个工具。
 
 <div align="center">
-  <img src="qrcode.png" alt="微信支付/支付宝" width="500"/>
-  <p>微信支付 / 支付宝</p>
+  <table>
+    <tr>
+      <td align="center">
+        <img src="qrcode-wechat-small.png" alt="微信支付" width="300"/>
+        <p>WeChat(微信)</p>
+      </td>
+      <td align="center">
+        <img src="qrcode-alipay-small.png" alt="支付宝" width="300"/>
+        <p>Alipay(支付宝)</p>
+      </td>
+    </tr>
+  </table>
 </div>
 
 ## 许可证
