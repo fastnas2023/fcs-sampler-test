@@ -215,7 +215,7 @@ class FcsSamplerGUI:
         
         # 添加更新信息区域
         self.update_frame = ttk.LabelFrame(about_content, text="更新信息", padding=10)
-        self.update_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        self.update_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
         self.update_frame.columnconfigure(0, weight=1)
         
         self.update_info = ttk.Label(self.update_frame, text='点击"检查更新"按钮查看是否有新版本可用。', wraplength=600)
@@ -232,7 +232,7 @@ class FcsSamplerGUI:
         
         # 打赏二维码部分
         donate_frame = ttk.LabelFrame(about_content, text="打赏支持", padding=10)
-        donate_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=10)
+        donate_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=10)
         
         # 设置打赏框架的列权重
         donate_frame.columnconfigure(0, weight=1)
