@@ -178,27 +178,18 @@ class FcsSamplerGUI:
         self.info_text.configure(yscrollcommand=scrollbar.set)
         
         # ===== 关于选项卡内容 =====
-        # 添加应用程序信息
-        about_frame = ttk.Frame(about_tab, padding=10)
-        about_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=10, pady=10)
+        # 使用直接的布局方式，不使用Canvas
+        about_content = ttk.Frame(about_tab)
+        about_content.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=10, pady=10)
         
-        # 设置关于框架的行列权重
-        about_frame.grid_rowconfigure(0, weight=1)
-        about_frame.grid_columnconfigure(0, weight=1)
-        
-        # 创建滚动区域
-        about_canvas = tk.Canvas(about_frame, bg="#f5f5f5", highlightthickness=0)
-        about_canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        
-        about_scrollbar = ttk.Scrollbar(about_frame, orient="vertical", command=about_canvas.yview)
-        about_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
-        about_canvas.configure(yscrollcommand=about_scrollbar.set)
-        
-        # 创建内容框架
-        about_content = ttk.Frame(about_canvas)
-        about_canvas.create_window((0, 0), window=about_content, anchor=tk.NW)
+        # 设置关于内容的列权重
+        about_content.columnconfigure(0, weight=1)
         
         # 应用程序描述
+        desc_frame = ttk.Frame(about_content)
+        desc_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        desc_frame.columnconfigure(0, weight=1)
+        
         desc_text = """FCS细胞采样工具是一个用于处理流式细胞仪数据的应用程序。
         
 它可以帮助您从大型FCS文件中提取样本，支持多种采样模式：
@@ -208,8 +199,8 @@ class FcsSamplerGUI:
 
 本工具由cn111.net工作室开发，版本1.0.2"""
         
-        desc_label = ttk.Label(about_content, text=desc_text, wraplength=600, justify=tk.LEFT)
-        desc_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 20))
+        desc_label = ttk.Label(desc_frame, text=desc_text, wraplength=600, justify=tk.LEFT)
+        desc_label.grid(row=0, column=0, sticky=(tk.W, tk.E))
         
         # 打赏二维码部分
         donate_frame = ttk.LabelFrame(about_content, text="打赏支持", padding=10)
@@ -220,11 +211,16 @@ class FcsSamplerGUI:
         
         # 添加说明文字
         intro_text = "如果您觉得这个工具对您有所帮助，欢迎扫描下方二维码进行打赏支持！"
-        ttk.Label(donate_frame, text=intro_text, wraplength=600).grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
+        ttk.Label(donate_frame, text=intro_text, wraplength=600).grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         
         # 创建二维码容器框架
         qrcode_container = ttk.Frame(donate_frame)
-        qrcode_container.grid(row=1, column=0, sticky=tk.W)
+        qrcode_container.grid(row=1, column=0, sticky=(tk.W, tk.E))
+        
+        # 设置二维码容器的列权重，使二维码居中
+        qrcode_container.columnconfigure(0, weight=1)
+        qrcode_container.columnconfigure(1, weight=1)
+        qrcode_container.columnconfigure(2, weight=1)
         
         # 加载并显示微信二维码
         try:
@@ -235,7 +231,7 @@ class FcsSamplerGUI:
             
             # 创建微信支付框架
             wechat_frame = ttk.Frame(qrcode_container)
-            wechat_frame.pack(side=tk.LEFT, padx=20, pady=5)
+            wechat_frame.grid(row=0, column=0, padx=20, pady=5, sticky=tk.E)
             
             # 添加微信二维码和标签
             wechat_label = ttk.Label(wechat_frame, image=self.wechat_photo)
@@ -253,7 +249,7 @@ class FcsSamplerGUI:
             
             # 创建支付宝框架
             alipay_frame = ttk.Frame(qrcode_container)
-            alipay_frame.pack(side=tk.LEFT, padx=20, pady=5)
+            alipay_frame.grid(row=0, column=2, padx=20, pady=5, sticky=tk.W)
             
             # 添加支付宝二维码和标签
             alipay_label = ttk.Label(alipay_frame, image=self.alipay_photo)
@@ -264,11 +260,7 @@ class FcsSamplerGUI:
             
         # 添加感谢文字
         thank_text = "感谢您的支持，这将帮助我们持续改进和维护这个工具！"
-        ttk.Label(donate_frame, text=thank_text, wraplength=600, font=('Arial', 10, 'italic')).grid(row=2, column=0, sticky=tk.W, pady=10)
-        
-        # 更新滚动区域
-        about_content.update_idletasks()
-        about_canvas.config(scrollregion=about_canvas.bbox("all"))
+        ttk.Label(donate_frame, text=thank_text, wraplength=600, font=('Arial', 10, 'italic')).grid(row=2, column=0, sticky=(tk.W, tk.E), pady=10)
         
         # 添加版权信息
         copyright_frame = ttk.Frame(main_frame)
