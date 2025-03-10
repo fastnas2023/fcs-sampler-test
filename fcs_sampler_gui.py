@@ -796,9 +796,10 @@ class FcsSamplerGUI:
             text=i18n.get("start_sampling"),
             command=self.start_sampling,
             style="TButton",
-            width=15
+            width=20  # 增加按钮宽度从15到20
         )
-        start_button.pack(pady=10)
+        # 使用grid而不是pack，更好地控制按钮位置
+        start_button.grid(row=0, column=0, pady=15)  # 增加上下内边距从10到15
 
         # 信息显示部分
         info_section = ttk.LabelFrame(tab, text=i18n.get("process_info"), padding=10)
@@ -1146,6 +1147,13 @@ class FcsSamplerGUI:
             background="#4CAF50",  # 设置背景色
             foreground="#ffffff",  # 设置文字颜色
             anchor="center"  # 确保文本居中
+        )
+        
+        # 设置标准按钮样式
+        style.configure(
+            "TButton",
+            font=("Microsoft YaHei", 11, "bold"),  # 设置字体
+            padding=(15, 8)  # 设置内边距
         )
         
         # 设置按钮鼠标悬停样式
