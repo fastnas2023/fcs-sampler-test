@@ -218,7 +218,7 @@ class FcsSamplerGUI:
         self.update_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
         self.update_frame.columnconfigure(0, weight=1)
         
-        self.update_info = ttk.Label(self.update_frame, text="点击"检查更新"按钮查看是否有新版本可用。", wraplength=600)
+        self.update_info = ttk.Label(self.update_frame, text='点击"检查更新"按钮查看是否有新版本可用。', wraplength=600)
         self.update_info.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=5)
         
         self.update_action_frame = ttk.Frame(self.update_frame)
@@ -389,7 +389,7 @@ class FcsSamplerGUI:
             
             # 如果不是静默检查，显示提示
             if not silent:
-                messagebox.showinfo("更新可用", f"发现新版本 {self.latest_version}！\n您可以在"关于与支持"选项卡中下载更新。")
+                messagebox.showinfo("更新可用", f"发现新版本 {self.latest_version}！\n您可以在'关于与支持'选项卡中下载更新。")
         
         else:
             # 已是最新版本
