@@ -6,12 +6,13 @@ import numpy as np
 from datetime import datetime
 import os
 import tempfile
+from PIL import Image, ImageTk  # 添加PIL库导入
 
 class FcsSamplerGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("FCS文件细胞采样工具")
-        self.root.geometry("600x700")
+        self.root.geometry("600x800")  # 增加窗口高度以容纳二维码
         
         # 创建主框架
         main_frame = ttk.Frame(root, padding="10")
@@ -77,6 +78,41 @@ class FcsSamplerGUI:
         
         ttk.Button(button_frame, text="开始采样", command=self.start_sampling).grid(row=0, column=0, padx=10)
         ttk.Button(button_frame, text="清除信息", command=self.clear_info).grid(row=0, column=1, padx=10)
+        
+        # 添加打赏二维码部分
+        ttk.Label(main_frame, text="打赏支持", font=('Arial', 12, 'bold')).grid(row=15, column=0, pady=(20,10), sticky=tk.W)
+        
+        # 创建二维码框架
+        qrcode_frame = ttk.Frame(main_frame)
+        qrcode_frame.grid(row=16, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        
+        # 加载并显示微信二维码
+        try:
+            wechat_img = Image.open("qrcode-wechat.jpg")
+            wechat_img = wechat_img.resize((150, 150), Image.LANCZOS)  # 调整大小
+            self.wechat_photo = ImageTk.PhotoImage(wechat_img)
+            
+            wechat_label = ttk.Label(qrcode_frame, image=self.wechat_photo)
+            wechat_label.grid(row=0, column=0, padx=10, pady=5)
+            ttk.Label(qrcode_frame, text="微信支付").grid(row=1, column=0, padx=10)
+        except Exception as e:
+            print(f"加载微信二维码出错: {e}")
+        
+        # 加载并显示支付宝二维码
+        try:
+            alipay_img = Image.open("qrcode-alipay.jpg")
+            alipay_img = alipay_img.resize((150, 150), Image.LANCZOS)  # 调整大小
+            self.alipay_photo = ImageTk.PhotoImage(alipay_img)
+            
+            alipay_label = ttk.Label(qrcode_frame, image=self.alipay_photo)
+            alipay_label.grid(row=0, column=1, padx=10, pady=5)
+            ttk.Label(qrcode_frame, text="支付宝").grid(row=1, column=1, padx=10)
+        except Exception as e:
+            print(f"加载支付宝二维码出错: {e}")
+            
+        # 添加感谢文字
+        thank_text = "感谢您的支持，这将帮助我们持续改进和维护这个工具！"
+        ttk.Label(qrcode_frame, text=thank_text, wraplength=400).grid(row=2, column=0, columnspan=2, pady=10)
         
     def select_file(self):
         filename = filedialog.askopenfilename(
