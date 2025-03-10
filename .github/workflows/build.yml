@@ -84,10 +84,8 @@ jobs:
       - name: Create Windows installer
         run: |
           pip install pynsist
-          python -c "
-          with open('installer.cfg', 'w', encoding='utf-8') as f:
-              f.write('''[Application]
-          name=FCS细胞采样工具
+          echo "[Application]
+          name=FCS Sampler Tool
           version=${{ steps.get_version.outputs.VERSION }}
           entry_point=fcs_sampler_gui:main
           icon=app_icon.ico
@@ -106,9 +104,8 @@ jobs:
               scipy
           
           [Build]
-          installer_name=FCS细胞采样工具_v${{ steps.get_version.outputs.VERSION }}_安装程序.exe
-          ''')
-          "
+          installer_name=FCS_Sampler_Tool_v${{ steps.get_version.outputs.VERSION }}_Setup.exe
+          " > installer.cfg
           
           pynsist installer.cfg
           
@@ -118,7 +115,7 @@ jobs:
           name: FCS细胞采样工具-Windows-v${{ steps.get_version.outputs.VERSION }}
           path: |
             dist/FCS细胞采样工具_v${{ steps.get_version.outputs.VERSION }}.exe
-            build/nsis/FCS细胞采样工具_v${{ steps.get_version.outputs.VERSION }}_安装程序.exe
+            build/nsis/FCS_Sampler_Tool_v${{ steps.get_version.outputs.VERSION }}_Setup.exe
             
   create-release:
     needs: [build-macos, build-windows]
@@ -143,5 +140,5 @@ jobs:
           prerelease: false
           files: |
             FCS细胞采样工具-macOS-v${{ steps.get_version.outputs.VERSION }}/FCS细胞采样工具_v${{ steps.get_version.outputs.VERSION }}.dmg
-            FCS细胞采样工具-Windows-v${{ steps.get_version.outputs.VERSION }}/FCS细胞采样工具_v${{ steps.get_version.outputs.VERSION }}_安装程序.exe
+            FCS细胞采样工具-Windows-v${{ steps.get_version.outputs.VERSION }}/FCS_Sampler_Tool_v${{ steps.get_version.outputs.VERSION }}_Setup.exe
           tag_name: v${{ steps.get_version.outputs.VERSION }} 
