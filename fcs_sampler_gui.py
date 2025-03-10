@@ -8,6 +8,10 @@ import os
 import tempfile
 from PIL import Image, ImageTk  # 添加PIL库导入
 import webbrowser  # 添加webbrowser库用于打开网页链接
+import requests  # 添加requests库用于网络请求
+import json  # 添加json库用于解析API响应
+import threading  # 添加threading库用于后台任务
+import re  # 添加re库用于版本比较
 
 class FcsSamplerGUI:
     def __init__(self, root):
@@ -39,6 +43,10 @@ class FcsSamplerGUI:
         # 添加工作室信息和官网链接
         studio_frame = ttk.Frame(header_frame)
         studio_frame.grid(row=0, column=1, sticky=tk.E)
+        
+        # 添加检查更新按钮
+        self.update_button = ttk.Button(studio_frame, text="检查更新", command=self.check_for_updates)
+        self.update_button.pack(side=tk.LEFT, padx=(0, 10))
         
         studio_label = ttk.Label(studio_frame, text="由 ", font=('Arial', 10))
         studio_label.pack(side=tk.LEFT)
@@ -190,21 +198,41 @@ class FcsSamplerGUI:
         desc_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
         desc_frame.columnconfigure(0, weight=1)
         
-        desc_text = """FCS细胞采样工具是一个用于处理流式细胞仪数据的应用程序。
+        # 获取当前版本
+        self.current_version = self.get_current_version()
+        
+        desc_text = f"""FCS细胞采样工具是一个用于处理流式细胞仪数据的应用程序。
         
 它可以帮助您从大型FCS文件中提取样本，支持多种采样模式：
 • 连续采样：从指定位置开始连续提取指定数量的细胞
 • 间隔采样：按固定间隔从指定范围内提取细胞
 • 随机采样：从指定范围内随机提取指定数量的细胞
 
-本工具由cn111.net工作室开发，版本1.0.2"""
+本工具由cn111.net工作室开发，当前版本 {self.current_version}"""
         
         desc_label = ttk.Label(desc_frame, text=desc_text, wraplength=600, justify=tk.LEFT)
         desc_label.grid(row=0, column=0, sticky=(tk.W, tk.E))
         
+        # 添加更新信息区域
+        self.update_frame = ttk.LabelFrame(about_content, text="更新信息", padding=10)
+        self.update_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        self.update_frame.columnconfigure(0, weight=1)
+        
+        self.update_info = ttk.Label(self.update_frame, text="点击"检查更新"按钮查看是否有新版本可用。", wraplength=600)
+        self.update_info.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=5)
+        
+        self.update_action_frame = ttk.Frame(self.update_frame)
+        self.update_action_frame.grid(row=1, column=0, sticky=(tk.W, tk.E))
+        
+        self.download_button = ttk.Button(self.update_action_frame, text="下载更新", command=self.download_update, state=tk.DISABLED)
+        self.download_button.pack(side=tk.LEFT, padx=5)
+        
+        self.release_notes_button = ttk.Button(self.update_action_frame, text="查看发布说明", command=self.view_release_notes, state=tk.DISABLED)
+        self.release_notes_button.pack(side=tk.LEFT, padx=5)
+        
         # 打赏二维码部分
         donate_frame = ttk.LabelFrame(about_content, text="打赏支持", padding=10)
-        donate_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=10)
+        donate_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=10)
         
         # 设置打赏框架的列权重
         donate_frame.columnconfigure(0, weight=1)
@@ -266,7 +294,7 @@ class FcsSamplerGUI:
         copyright_frame = ttk.Frame(main_frame)
         copyright_frame.grid(row=2, column=0, sticky=(tk.E), pady=(5, 0))
         
-        copyright_text = "© 2025 FCS细胞采样工具 - 版本 1.0.2"
+        copyright_text = f"© 2025 FCS细胞采样工具 - 版本 {self.current_version}"
         ttk.Label(copyright_frame, text=copyright_text, font=('Arial', 8)).pack(side=tk.RIGHT)
         
         # 设置样式
@@ -275,6 +303,145 @@ class FcsSamplerGUI:
         # 绑定窗口大小变化事件
         self.root.bind("<Configure>", self.on_window_resize)
         
+        # 存储更新信息
+        self.latest_version = None
+        self.release_url = None
+        self.download_url = None
+        self.release_notes = None
+        
+        # 自动检查更新（可选）
+        # self.check_for_updates(silent=True)
+        
+    def get_current_version(self):
+        """获取当前版本号"""
+        try:
+            with open("version.txt", "r") as f:
+                return f.read().strip()
+        except:
+            return "1.0.0"  # 默认版本号
+    
+    def check_for_updates(self, silent=False):
+        """检查更新"""
+        # 禁用更新按钮，避免重复点击
+        self.update_button.configure(state=tk.DISABLED, text="检查中...")
+        
+        # 在后台线程中执行网络请求
+        threading.Thread(target=self._check_updates_thread, args=(silent,), daemon=True).start()
+    
+    def _check_updates_thread(self, silent):
+        """在后台线程中检查更新"""
+        try:
+            # 获取GitHub仓库的最新发布信息
+            response = requests.get("https://api.github.com/repos/fastnas2023/fcs-sampler-test/releases/latest", timeout=10)
+            
+            if response.status_code == 200:
+                release_info = response.json()
+                self.latest_version = release_info.get("tag_name", "").lstrip("v")
+                self.release_url = release_info.get("html_url")
+                self.release_notes = release_info.get("body", "")
+                
+                # 获取下载链接
+                assets = release_info.get("assets", [])
+                for asset in assets:
+                    if self._is_suitable_download(asset.get("name", "")):
+                        self.download_url = asset.get("browser_download_url")
+                        break
+                
+                # 在主线程中更新UI
+                self.root.after(0, lambda: self._update_ui_after_check(silent))
+            else:
+                # 在主线程中显示错误
+                self.root.after(0, lambda: self._show_update_error("无法获取更新信息，服务器返回错误。", silent))
+        
+        except Exception as e:
+            # 在主线程中显示错误
+            self.root.after(0, lambda: self._show_update_error(f"检查更新时出错: {str(e)}", silent))
+    
+    def _is_suitable_download(self, filename):
+        """判断文件是否适合当前系统"""
+        import platform
+        system = platform.system().lower()
+        
+        if system == "windows" and (filename.endswith(".exe") or filename.endswith(".msi")):
+            return True
+        elif system == "darwin" and (filename.endswith(".dmg") or filename.endswith(".pkg")):
+            return True
+        elif system == "linux" and (filename.endswith(".deb") or filename.endswith(".rpm") or filename.endswith(".AppImage")):
+            return True
+        
+        return False
+    
+    def _update_ui_after_check(self, silent):
+        """更新检查完成后更新UI"""
+        # 恢复更新按钮
+        self.update_button.configure(state=tk.NORMAL, text="检查更新")
+        
+        if self._is_newer_version(self.latest_version, self.current_version):
+            # 有新版本可用
+            self.update_info.configure(text=f"发现新版本 {self.latest_version}！当前版本 {self.current_version}")
+            
+            # 启用下载和查看发布说明按钮
+            if self.download_url:
+                self.download_button.configure(state=tk.NORMAL)
+            
+            if self.release_url:
+                self.release_notes_button.configure(state=tk.NORMAL)
+            
+            # 如果不是静默检查，显示提示
+            if not silent:
+                messagebox.showinfo("更新可用", f"发现新版本 {self.latest_version}！\n您可以在"关于与支持"选项卡中下载更新。")
+        
+        else:
+            # 已是最新版本
+            self.update_info.configure(text=f"您的软件已是最新版本 {self.current_version}")
+            
+            # 禁用下载和查看发布说明按钮
+            self.download_button.configure(state=tk.DISABLED)
+            self.release_notes_button.configure(state=tk.DISABLED)
+            
+            # 如果不是静默检查，显示提示
+            if not silent:
+                messagebox.showinfo("已是最新版本", f"您的软件已是最新版本 {self.current_version}")
+    
+    def _show_update_error(self, error_message, silent):
+        """显示更新错误"""
+        # 恢复更新按钮
+        self.update_button.configure(state=tk.NORMAL, text="检查更新")
+        
+        # 更新信息
+        self.update_info.configure(text=f"检查更新失败: {error_message}")
+        
+        # 如果不是静默检查，显示错误
+        if not silent:
+            messagebox.showerror("检查更新失败", error_message)
+    
+    def _is_newer_version(self, version1, version2):
+        """比较版本号，如果version1比version2新，返回True"""
+        def normalize(v):
+            # 移除前缀v（如果有）
+            v = v.lstrip("v")
+            # 将版本号分割为数字部分
+            parts = re.findall(r'\d+', v)
+            # 转换为整数列表
+            return [int(x) for x in parts]
+        
+        v1 = normalize(version1 or "")
+        v2 = normalize(version2 or "")
+        
+        # 比较版本号
+        return v1 > v2
+    
+    def download_update(self):
+        """下载更新"""
+        if self.download_url:
+            webbrowser.open_new(self.download_url)
+            messagebox.showinfo("下载已开始", "更新文件将在浏览器中下载。下载完成后，请关闭此应用程序并安装新版本。")
+    
+    def view_release_notes(self):
+        """查看发布说明"""
+        if self.release_url:
+            webbrowser.open_new(self.release_url)
+    
     def on_window_resize(self, event):
         """处理窗口大小变化事件"""
         # 只处理来自根窗口的事件
