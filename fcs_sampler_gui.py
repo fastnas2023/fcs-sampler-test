@@ -16,9 +16,17 @@ class FcsSamplerGUI:
         self.root.geometry("700x850")  # 调整窗口大小以适应新布局
         self.root.configure(bg="#f5f5f5")  # 设置背景颜色
         
+        # 设置窗口大小调整时的行为
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+        
         # 创建主框架
         main_frame = ttk.Frame(root, padding="15")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        
+        # 设置主框架的行列权重，使其能够随窗口大小调整
+        main_frame.grid_rowconfigure(1, weight=1)  # 选项卡区域可以扩展
+        main_frame.grid_columnconfigure(0, weight=1)
         
         # 创建标题和工作室信息框架
         header_frame = ttk.Frame(main_frame)
@@ -52,89 +60,143 @@ class FcsSamplerGUI:
         tab_control.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
         
         # 创建"采样"选项卡
-        sampling_tab = ttk.Frame(tab_control, padding=10)
+        sampling_tab = ttk.Frame(tab_control)
         tab_control.add(sampling_tab, text="采样设置")
         
+        # 设置采样选项卡的行列权重
+        sampling_tab.grid_rowconfigure(3, weight=1)  # 信息显示区域可以扩展
+        sampling_tab.grid_columnconfigure(0, weight=1)
+        
         # 创建"关于"选项卡
-        about_tab = ttk.Frame(tab_control, padding=10)
+        about_tab = ttk.Frame(tab_control)
         tab_control.add(about_tab, text="关于与支持")
+        
+        # 设置关于选项卡的行列权重
+        about_tab.grid_rowconfigure(0, weight=1)
+        about_tab.grid_columnconfigure(0, weight=1)
         
         # ===== 采样选项卡内容 =====
         # 文件选择部分
         file_section = ttk.LabelFrame(sampling_tab, text="文件设置", padding=10)
-        file_section.pack(fill=tk.X, pady=(0, 10))
+        file_section.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=10, pady=10)
+        
+        # 设置文件部分的列权重
+        file_section.columnconfigure(0, weight=1)
         
         # 文件选择行
         file_frame = ttk.Frame(file_section)
-        file_frame.pack(fill=tk.X, pady=5)
+        file_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=5)
+        
+        # 设置文件选择行的列权重
+        file_frame.columnconfigure(1, weight=1)
         
         ttk.Label(file_frame, text="FCS文件:").grid(row=0, column=0, padx=5)
         self.file_path = tk.StringVar()
-        ttk.Entry(file_frame, textvariable=self.file_path, width=50).grid(row=0, column=1, padx=5)
+        ttk.Entry(file_frame, textvariable=self.file_path).grid(row=0, column=1, padx=5, sticky=(tk.W, tk.E))
         ttk.Button(file_frame, text="选择文件", command=self.select_file).grid(row=0, column=2, padx=5)
         
         # 输出目录行
         output_frame = ttk.Frame(file_section)
-        output_frame.pack(fill=tk.X, pady=5)
+        output_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=5)
+        
+        # 设置输出目录行的列权重
+        output_frame.columnconfigure(1, weight=1)
         
         ttk.Label(output_frame, text="输出目录:").grid(row=0, column=0, padx=5)
         self.output_dir = tk.StringVar(value=os.path.expanduser("~/Documents"))
-        ttk.Entry(output_frame, textvariable=self.output_dir, width=50).grid(row=0, column=1, padx=5)
+        ttk.Entry(output_frame, textvariable=self.output_dir).grid(row=0, column=1, padx=5, sticky=(tk.W, tk.E))
         ttk.Button(output_frame, text="选择目录", command=self.select_output_dir).grid(row=0, column=2, padx=5)
         
         # 参数设置部分
         param_section = ttk.LabelFrame(sampling_tab, text="采样参数", padding=10)
-        param_section.pack(fill=tk.X, pady=(0, 10))
+        param_section.grid(row=1, column=0, sticky=(tk.W, tk.E), padx=10, pady=10)
+        
+        # 设置参数部分的列权重
+        param_section.columnconfigure(0, weight=1)
         
         # 范围设置
         range_frame = ttk.Frame(param_section)
-        range_frame.pack(fill=tk.X, pady=5)
+        range_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=5)
+        
+        # 设置范围设置行的列权重
+        range_frame.columnconfigure(1, weight=1)
+        range_frame.columnconfigure(3, weight=1)
         
         ttk.Label(range_frame, text="起始位置:").grid(row=0, column=0, padx=5)
         self.range_start = tk.StringVar(value="0")  # 改为0，表示第1个细胞
-        ttk.Entry(range_frame, textvariable=self.range_start, width=15).grid(row=0, column=1, padx=5)
+        ttk.Entry(range_frame, textvariable=self.range_start).grid(row=0, column=1, padx=5, sticky=(tk.W, tk.E))
         
         ttk.Label(range_frame, text="结束位置:").grid(row=0, column=2, padx=5)
         self.range_end = tk.StringVar(value="-1")  # 使用-1表示最后一个细胞
-        ttk.Entry(range_frame, textvariable=self.range_end, width=15).grid(row=0, column=3, padx=5)
+        ttk.Entry(range_frame, textvariable=self.range_end).grid(row=0, column=3, padx=5, sticky=(tk.W, tk.E))
         
         # 采样设置
         sample_frame = ttk.Frame(param_section)
-        sample_frame.pack(fill=tk.X, pady=5)
+        sample_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=5)
+        
+        # 设置采样设置行的列权重
+        sample_frame.columnconfigure(1, weight=1)
+        sample_frame.columnconfigure(3, weight=1)
         
         ttk.Label(sample_frame, text="目标数量:").grid(row=0, column=0, padx=5)
         self.target_count = tk.StringVar(value="-1")  # 使用-1表示所有细胞
-        ttk.Entry(sample_frame, textvariable=self.target_count, width=15).grid(row=0, column=1, padx=5)
+        ttk.Entry(sample_frame, textvariable=self.target_count).grid(row=0, column=1, padx=5, sticky=(tk.W, tk.E))
         
         ttk.Label(sample_frame, text="采样模式:").grid(row=0, column=2, padx=5)
         self.sample_mode = tk.StringVar(value="interval")
-        mode_combo = ttk.Combobox(sample_frame, textvariable=self.sample_mode, width=15)
+        mode_combo = ttk.Combobox(sample_frame, textvariable=self.sample_mode)
         mode_combo['values'] = ('continuous', 'interval', 'random')
-        mode_combo.grid(row=0, column=3, padx=5)
+        mode_combo.grid(row=0, column=3, padx=5, sticky=(tk.W, tk.E))
         
         # 操作按钮
         button_frame = ttk.Frame(sampling_tab)
-        button_frame.pack(fill=tk.X, pady=10)
+        button_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), padx=10, pady=10)
         
         ttk.Button(button_frame, text="开始采样", command=self.start_sampling, style="Accent.TButton").pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="清除信息", command=self.clear_info).pack(side=tk.LEFT, padx=5)
         
         # 信息显示区域
         info_section = ttk.LabelFrame(sampling_tab, text="处理信息", padding=10)
-        info_section.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        info_section.grid(row=3, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=10, pady=10)
         
-        self.info_text = tk.Text(info_section, height=15, width=70)
-        self.info_text.pack(fill=tk.BOTH, expand=True)
+        # 设置信息显示区域的行列权重
+        info_section.grid_rowconfigure(0, weight=1)
+        info_section.grid_columnconfigure(0, weight=1)
         
-        # 添加滚动条
-        scrollbar = ttk.Scrollbar(self.info_text, orient="vertical", command=self.info_text.yview)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        # 创建文本框和滚动条的容器
+        text_container = ttk.Frame(info_section)
+        text_container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        text_container.grid_rowconfigure(0, weight=1)
+        text_container.grid_columnconfigure(0, weight=1)
+        
+        # 添加文本框和滚动条
+        self.info_text = tk.Text(text_container)
+        self.info_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        
+        scrollbar = ttk.Scrollbar(text_container, orient="vertical", command=self.info_text.yview)
+        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
         self.info_text.configure(yscrollcommand=scrollbar.set)
         
         # ===== 关于选项卡内容 =====
         # 添加应用程序信息
         about_frame = ttk.Frame(about_tab, padding=10)
-        about_frame.pack(fill=tk.BOTH, expand=True)
+        about_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=10, pady=10)
+        
+        # 设置关于框架的行列权重
+        about_frame.grid_rowconfigure(0, weight=1)
+        about_frame.grid_columnconfigure(0, weight=1)
+        
+        # 创建滚动区域
+        about_canvas = tk.Canvas(about_frame, bg="#f5f5f5", highlightthickness=0)
+        about_canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        
+        about_scrollbar = ttk.Scrollbar(about_frame, orient="vertical", command=about_canvas.yview)
+        about_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        about_canvas.configure(yscrollcommand=about_scrollbar.set)
+        
+        # 创建内容框架
+        about_content = ttk.Frame(about_canvas)
+        about_canvas.create_window((0, 0), window=about_content, anchor=tk.NW)
         
         # 应用程序描述
         desc_text = """FCS细胞采样工具是一个用于处理流式细胞仪数据的应用程序。
@@ -146,20 +208,23 @@ class FcsSamplerGUI:
 
 本工具由cn111.net工作室开发，版本1.0.2"""
         
-        desc_label = ttk.Label(about_frame, text=desc_text, wraplength=600, justify=tk.LEFT)
-        desc_label.pack(fill=tk.X, pady=(0, 20))
+        desc_label = ttk.Label(about_content, text=desc_text, wraplength=600, justify=tk.LEFT)
+        desc_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 20))
         
         # 打赏二维码部分
-        donate_frame = ttk.LabelFrame(about_tab, text="打赏支持", padding=10)
-        donate_frame.pack(fill=tk.X, pady=10)
+        donate_frame = ttk.LabelFrame(about_content, text="打赏支持", padding=10)
+        donate_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=10)
+        
+        # 设置打赏框架的列权重
+        donate_frame.columnconfigure(0, weight=1)
         
         # 添加说明文字
         intro_text = "如果您觉得这个工具对您有所帮助，欢迎扫描下方二维码进行打赏支持！"
-        ttk.Label(donate_frame, text=intro_text, wraplength=600).pack(pady=(0, 10))
+        ttk.Label(donate_frame, text=intro_text, wraplength=600).grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
         
         # 创建二维码容器框架
         qrcode_container = ttk.Frame(donate_frame)
-        qrcode_container.pack(fill=tk.X)
+        qrcode_container.grid(row=1, column=0, sticky=tk.W)
         
         # 加载并显示微信二维码
         try:
@@ -199,7 +264,11 @@ class FcsSamplerGUI:
             
         # 添加感谢文字
         thank_text = "感谢您的支持，这将帮助我们持续改进和维护这个工具！"
-        ttk.Label(donate_frame, text=thank_text, wraplength=600, font=('Arial', 10, 'italic')).pack(pady=10)
+        ttk.Label(donate_frame, text=thank_text, wraplength=600, font=('Arial', 10, 'italic')).grid(row=2, column=0, sticky=tk.W, pady=10)
+        
+        # 更新滚动区域
+        about_content.update_idletasks()
+        about_canvas.config(scrollregion=about_canvas.bbox("all"))
         
         # 添加版权信息
         copyright_frame = ttk.Frame(main_frame)
@@ -210,6 +279,16 @@ class FcsSamplerGUI:
         
         # 设置样式
         self.setup_styles()
+        
+        # 绑定窗口大小变化事件
+        self.root.bind("<Configure>", self.on_window_resize)
+        
+    def on_window_resize(self, event):
+        """处理窗口大小变化事件"""
+        # 只处理来自根窗口的事件
+        if event.widget == self.root:
+            # 可以在这里添加额外的调整逻辑
+            pass
         
     def setup_styles(self):
         """设置自定义样式"""
