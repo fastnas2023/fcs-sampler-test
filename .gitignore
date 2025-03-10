@@ -64,4 +64,5 @@ $RECYCLE.BIN/
 # 项目特定文件
 *.fcs
 !test.fcs
-!test-0-100W.fcs 
+# 排除大文件
+test-0-100W.fcs 
